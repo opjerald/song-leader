@@ -19,9 +19,9 @@ const TabLayout = () => {
         }}
       />
       <Tabs.Screen
-        name="lineups"
+        name="schedules"
         options={{
-          title: "Line Ups",
+          title: "Schedules",
           tabBarIcon: ({ color }) => (
             <FontAwesome6 name="rectangle-list" size={24} color={color} />
           ),

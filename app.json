@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "song-leader",
+    "name": "Song Leader",
     "slug": "song-leader",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -37,6 +37,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "14724aaf-df31-4d1e-9f67-bf50a389583c"
+      }
     }
   }
 }

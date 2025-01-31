@@ -1,6 +1,18 @@
-import useDebounce from "@/hooks/use-debounce";
-import { FlashList } from "@shopify/flash-list";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
+import ReactNativeModal from "react-native-modal";
+import RNPickerSelect from "react-native-picker-select";
+import tw from "twrnc";
+
 import { useEffect, useRef, useState } from "react";
+import { FlashList } from "@shopify/flash-list";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useForm, Controller } from "react-hook-form";
+import { z } from "zod";
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import {
   Text,
   TextInput,
@@ -8,24 +20,15 @@ import {
   ScrollView,
   Pressable,
   TouchableOpacity,
+  Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-// import SongCard from "@/components/song-card";
-import ReactNativeModal from "react-native-modal";
-import RNPickerSelect from "react-native-picker-select";
+
+import useDebounce from "@/hooks/use-debounce";
 import { createData, readData, updateData } from "@/utils/store";
-import { z } from "zod";
-import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 
 const schema = z.object({
-  id: z.string().or(z.number()),
+  id: z.string(),
   title: z.string().min(1, "Title is required"),
   artist: z.string().min(1, "Artist is required"),
   key: z.string().max(2).min(1, "Key is required"),
@@ -91,47 +94,68 @@ const SongListScreen = () => {
     }
   }, [debouncedSearchTerm, data]);
 
-  const onSubmit = async (values: Schema) => {
-    if (mode === "create") {
-      const finalData = {
-        ...values,
-        id: Math.random().toString(36).slice(2, 7),
-      };
-      await createData("songs", [...data, finalData]);
-      setData((prev) => [...prev, finalData]);
-    } else {
-      const updatedSongs = data.map((song) =>
-        song.id === values.id ? { ...song, ...values } : song,
-      );
-      await updateData("songs", updatedSongs);
-      setData(updatedSongs);
-    }
-    setOpenModal(false);
+  const onSubmit = (values: Schema) => {
+    Alert.alert(mode === "create" ? "Add" : "Edit", "Are you sure?", [
+      {
+        text: "No",
+        style: "cancel",
+      },
+      {
+        text: "Yes",
+        onPress: async () => {
+          if (mode === "create") {
+            const finalData = {
+              ...values,
+              id: Math.random().toString(36).slice(2, 7),
+            };
+            await createData("songs", [...data, finalData]);
+            setData((prev) => [...prev, finalData]);
+          } else {
+            const updatedSongs = data.map((song) =>
+              song.id === values.id ? { ...song, ...values } : song,
+            );
+            await updateData("songs", updatedSongs);
+            setData(updatedSongs);
+          }
+          setOpenModal(false);
+        },
+      },
+    ]);
   };
 
   const handleEdit = () => {
     bottomSheetRef.current?.close();
     setMode("edit");
-    setValue("artist", selectedSong.artist);
-    setValue("id", selectedSong.id);
-    setValue("title", selectedSong.title);
-    setValue("key", selectedSong.key);
+    reset({ ...selectedSong });
     setOpenModal(true);
   };
 
   const handleDelete = async () => {
-    const updatedSongs = data.filter((song) => song.id !== selectedSong.id);
-    await updateData("songs", updatedSongs);
-    setData(updatedSongs);
-    bottomSheetRef.current?.close();
+    Alert.alert("Delete", "Do you want to delete this song?", [
+      {
+        text: "No",
+        style: "destructive",
+      },
+      {
+        text: "Yes, Delete!",
+        onPress: async () => {
+          const updatedSongs = data.filter(
+            (song) => song.id !== selectedSong.id,
+          );
+          await updateData("songs", updatedSongs);
+          setData(updatedSongs);
+          bottomSheetRef.current?.close();
+        },
+      },
+    ]);
   };
 
   return (
     <GestureHandlerRootView>
-      <SafeAreaView className="flex-1">
-        <View className="min-h-[110px] gap-3 bg-white px-5">
-          <View className="flex-row items-center justify-between pt-3">
-            <Text className="text-2xl font-bold text-violet-500">Songs</Text>
+      <SafeAreaView style={tw`flex-1`}>
+        <View style={tw`min-h-[110px] gap-3 bg-white px-5`}>
+          <View style={tw`flex-row items-center justify-between pt-3`}>
+            <Text style={tw`text-xl font-bold text-violet-500`}>Songs</Text>
             <Pressable
               onPress={() => {
                 setMode("create");
@@ -141,51 +165,50 @@ const SongListScreen = () => {
               <FontAwesome5 name="plus-circle" size={24} color="#8b5cf6" />
             </Pressable>
           </View>
-          <View className="relative flex-1">
+          <View style={tw`relative flex-1`}>
             <TextInput
               placeholder="Search..."
-              className="rounded-full border-2 border-violet-500 pl-12 text-lg"
+              style={tw`rounded-full border-2 border-violet-500 py-3 pl-10 text-base`}
               onChangeText={setSearchTerm}
             />
-            <View className="absolute left-4 top-4">
+            <View style={tw`absolute left-4 top-4`}>
               <FontAwesome5 name="search" size={20} color="#8b5cf6" />
             </View>
           </View>
         </View>
         <ScrollView>
-          <FlashList
-            data={filteredData}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                key={item.id}
-                className="my-3 flex-row items-center justify-between px-5"
-                onLongPress={() => {
-                  setSelectedSong(item);
-                  bottomSheetRef.current?.expand();
-                }}
-              >
-                <View className="gap-1">
-                  <Text className="text-xl">{item.title}</Text>
-                  <Text className="text-base text-violet-500">
-                    {item.artist}
+          <View style={tw`flex-1 p-2`}>
+            <FlashList
+              data={filteredData}
+              renderItem={({ item }) => (
+                <Pressable
+                  key={item.id}
+                  style={tw`flex-row items-center justify-between rounded-md bg-white px-5 py-2`}
+                  onLongPress={() => {
+                    setSelectedSong(item);
+                    bottomSheetRef.current?.expand();
+                  }}
+                >
+                  <View>
+                    <Text style={tw`text-lg`}>{item.title}</Text>
+                    <Text style={tw`text-base text-violet-500`}>
+                      {item.artist}
+                    </Text>
+                  </View>
+                  <Text style={tw`text-2xl font-bold text-violet-500`}>
+                    {item.key}
                   </Text>
-                </View>
-                <Text className="text-xl">{item.key}</Text>
-                {/* <Pressable onPress={() => handleEdit(item)}>
-                  <Text className="text-lg">Edit</Text>
                 </Pressable>
-                <Pressable onPress={() => handleDelete(item.id)}>
-                  <Text className="text-lg">Delete</Text>
-                </Pressable> */}
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={() => (
-              <View className="h-96 items-center justify-center">
-                <Text className="text-4xl text-gray-300">No Songs yet!</Text>
-              </View>
-            )}
-            estimatedItemSize={200}
-          />
+              )}
+              ItemSeparatorComponent={() => <View style={tw`h-2`}></View>}
+              ListEmptyComponent={() => (
+                <View style={tw`min-h-[300px] items-center justify-center`}>
+                  <Text style={tw`text-3xl text-gray-300`}>No Songs yet!</Text>
+                </View>
+              )}
+              estimatedItemSize={200}
+            />
+          </View>
           <ReactNativeModal
             isVisible={openModal}
             animationIn="slideInUp"
@@ -194,20 +217,20 @@ const SongListScreen = () => {
             onModalHide={() => reset()}
             avoidKeyboard
           >
-            <View className="min-h-[300px] gap-5 rounded-2xl bg-white px-7 py-9">
-              <Text className="text-2xl font-bold text-violet-500">
+            <View style={tw`min-h-[300px] gap-3 rounded-2xl bg-white p-6`}>
+              <Text style={tw`text-xl font-bold text-violet-500`}>
                 Add Song
               </Text>
-              <View className="gap-3">
-                <View className="gap-1">
-                  <Text className="text-lg">Song Title:</Text>
+              <View style={tw`gap-2`}>
+                <View style={tw`gap-1`}>
+                  <Text style={tw`text-base`}>Song Title:</Text>
                   <Controller
                     control={control}
                     name="title"
                     render={({ field }) => (
                       <TextInput
                         placeholder="Title"
-                        className="rounded-2xl border-2 border-violet-500 px-5 text-lg"
+                        style={tw`rounded-full border-2 border-violet-500 px-5 py-3 text-base`}
                         onBlur={field.onBlur}
                         onChangeText={field.onChange}
                         value={field.value}
@@ -215,20 +238,20 @@ const SongListScreen = () => {
                     )}
                   />
                   {errors.title?.message && (
-                    <Text className="text-base text-red-500">
+                    <Text style={tw`text-sm text-red-500`}>
                       {errors.title?.message}
                     </Text>
                   )}
                 </View>
-                <View className="gap-1">
-                  <Text className="text-lg">Artist:</Text>
+                <View style={tw`gap-1`}>
+                  <Text style={tw`text-base`}>Artist:</Text>
                   <Controller
                     control={control}
                     name="artist"
                     render={({ field }) => (
                       <TextInput
                         placeholder="Artist"
-                        className="rounded-2xl border-2 border-violet-500 px-5 text-lg"
+                        style={tw`rounded-full border-2 border-violet-500 px-5 py-3 text-base`}
                         onBlur={field.onBlur}
                         onChangeText={field.onChange}
                         value={field.value}
@@ -236,13 +259,13 @@ const SongListScreen = () => {
                     )}
                   />
                   {errors.artist?.message && (
-                    <Text className="text-base text-red-500">
+                    <Text style={tw`text-sm text-red-500`}>
                       {errors.artist?.message}
                     </Text>
                   )}
                 </View>
-                <View className="gap-1">
-                  <Text className="text-lg">Key:</Text>
+                <View style={tw`gap-1`}>
+                  <Text style={tw`text-base`}>Key:</Text>
                   <Controller
                     control={control}
                     name="key"
@@ -252,7 +275,8 @@ const SongListScreen = () => {
                           viewContainer: {
                             borderWidth: 2,
                             borderColor: "#8b5cf6",
-                            borderRadius: 16,
+                            borderRadius: 50,
+                            paddingLeft: 10,
                           },
                           placeholder: {
                             color: "gray",
@@ -279,26 +303,26 @@ const SongListScreen = () => {
                     )}
                   />
                   {errors.key?.message && (
-                    <Text className="text-base text-red-500">
+                    <Text style={tw`text-sm text-red-500`}>
                       {errors.key?.message}
                     </Text>
                   )}
                 </View>
               </View>
-              <View className="flex-row-reverse items-center gap-3">
+              <View style={tw`flex-row items-center justify-end gap-2`}>
                 <TouchableOpacity
-                  className="rounded-2xl border-2 border-black px-5 py-3"
-                  onPress={() => setOpenModal(false)}
-                >
-                  <Text>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="rounded-2xl bg-violet-500 px-5 py-3"
+                  style={tw`rounded-full bg-violet-500 px-4 py-3`}
                   onPress={handleSubmit(onSubmit)}
                 >
-                  <Text className="text-base text-white">
+                  <Text style={tw`text-white`}>
                     {mode === "create" ? "Add" : "Update"}
                   </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={tw`rounded-full border-2 border-violet-500 px-4 py-3`}
+                  onPress={() => setOpenModal(false)}
+                >
+                  <Text style={tw`text-violet-500`}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -308,7 +332,7 @@ const SongListScreen = () => {
       <BottomSheet
         ref={bottomSheetRef}
         index={-1}
-        snapPoints={[100]}
+        snapPoints={[150]}
         enablePanDownToClose
         backdropComponent={(props) => (
           <BottomSheetBackdrop
@@ -317,13 +341,30 @@ const SongListScreen = () => {
             appearsOnIndex={0}
           />
         )}
+        onChange={(index) => {
+          if (index === -1) {
+            setSelectedSong({} as Song);
+          }
+        }}
       >
-        <BottomSheetView className="flex-1 gap-3 px-4">
-          <TouchableOpacity className="px-2" onPress={() => handleEdit()}>
-            <Text className="text-lg font-semibold">Edit</Text>
+        <BottomSheetView style={tw`flex-1 gap-3 px-4`}>
+          <TouchableOpacity
+            style={tw`flex-row items-center gap-2 px-2`}
+            onPress={() => handleEdit()}
+          >
+            <View style={tw`w-5`}>
+              <FontAwesome5 name="edit" size={18} color="#8b5cf6" />
+            </View>
+            <Text style={tw`text-base`}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity className="px-2" onPress={() => handleDelete()}>
-            <Text className="text-lg font-semibold">Delete</Text>
+          <TouchableOpacity
+            style={tw`flex-row items-center gap-2 px-2`}
+            onPress={() => handleDelete()}
+          >
+            <View style={tw`w-5`}>
+              <FontAwesome5 name="trash-alt" size={18} color="#8b5cf6" />
+            </View>
+            <Text style={tw`text-base`}>Delete</Text>
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
