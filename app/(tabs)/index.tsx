@@ -26,6 +26,7 @@ import {
 import useDebounce from "@/hooks/use-debounce";
 import { createData, readData, updateData } from "@/utils/store";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useHideTab } from "@/stores/use-hide-tab";
 
 const schema = z.object({
   id: z.string(),
@@ -46,6 +47,7 @@ const SongListScreen = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [selectedSong, setSelectedSong] = useState<Song>({} as Song);
 
+  const toggleHideTab = useHideTab((state) => state.toggleHideTab);
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const {
@@ -185,6 +187,7 @@ const SongListScreen = () => {
                   key={item.id}
                   style={tw`flex-row items-center justify-between rounded-md bg-white px-5 py-2`}
                   onLongPress={() => {
+                    toggleHideTab();
                     setSelectedSong(item);
                     bottomSheetRef.current?.expand();
                   }}
@@ -343,6 +346,7 @@ const SongListScreen = () => {
         )}
         onChange={(index) => {
           if (index === -1) {
+            toggleHideTab();
             setSelectedSong({} as Song);
           }
         }}

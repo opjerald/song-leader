@@ -1,7 +1,7 @@
-import { deleteData, readData, updateData } from "@/utils/store";
+import { readData, updateData } from "@/utils/store";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { FlashList } from "@shopify/flash-list";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -24,6 +24,8 @@ import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import { getScheduledSongs } from "@/utils/tools";
+import { useHideTab } from "@/stores/use-hide-tab";
 
 const LineupsScreen = () => {
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -34,6 +36,8 @@ const LineupsScreen = () => {
   );
   const [songs, setSongs] = useState<Song[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+
+  const toggleHideTab = useHideTab((state) => state.toggleHideTab);
 
   const getData = async () => {
     const savedData = await readData<Schedule[]>("schedules");
@@ -51,9 +55,7 @@ const LineupsScreen = () => {
   }, []);
 
   const handleCopySchedule = async (schedule: Schedule) => {
-    const scheduleSongs = songs.filter((song) =>
-      schedule.songs.includes(song.id),
-    );
+    const scheduleSongs = getScheduledSongs(schedule, songs);
     const copyScheduleText = `${schedule.service_name}\n${scheduleSongs.map((song) => `(${song.key}) ${song.title} - ${song.artist}\n`).join("")}`;
     await Clipboard.setStringAsync(copyScheduleText);
     ToastAndroid.show("Copied", ToastAndroid.SHORT);
@@ -94,7 +96,7 @@ const LineupsScreen = () => {
           style={tw`flex-row items-center justify-between bg-white px-5 py-3`}
         >
           <Text style={tw`text-xl font-bold text-violet-500`}>Schedules</Text>
-          <Link href={{ pathname: "/schedule/[id]", params: { id: "new" } }}>
+          <Link href={{ pathname: "/schedules/[id]", params: { id: "new" } }}>
             <FontAwesome5 name="plus-circle" size={24} color="#8b5cf6" />
           </Link>
         </View>
@@ -124,6 +126,7 @@ const LineupsScreen = () => {
                       </Pressable>
                       <Pressable
                         onPress={() => {
+                          toggleHideTab();
                           setSelectedSchedule(item);
                           bottomSheetRef.current?.expand();
                         }}
@@ -137,14 +140,12 @@ const LineupsScreen = () => {
                     </View>
                   </View>
                   <View style={tw`px-2 pb-2`}>
-                    {songs
-                      .filter((song) => item.songs.includes(song.id))
-                      .map((song) => (
-                        <Text key={song.id} style={tw`text-base`}>
-                          (<Text style={tw`font-bold`}>{song.key}</Text>){" "}
-                          {song.title} - {song.artist}
-                        </Text>
-                      ))}
+                    {getScheduledSongs(item, songs).map((song) => (
+                      <Text key={song.id} style={tw`text-base`}>
+                        (<Text style={tw`font-bold`}>{song.key}</Text>){" "}
+                        {song.title} - {song.artist}
+                      </Text>
+                    ))}
                   </View>
                 </View>
               )}
@@ -174,6 +175,7 @@ const LineupsScreen = () => {
         )}
         onChange={(index) => {
           if (index === -1) {
+            toggleHideTab();
             setSelectedSchedule({} as Schedule);
           }
         }}
@@ -181,7 +183,7 @@ const LineupsScreen = () => {
         <BottomSheetView style={tw`flex-1 gap-2 px-4`}>
           <Link
             href={{
-              pathname: "/schedule/[id]",
+              pathname: "/schedules/[id]",
               params: { id: selectedSchedule.id },
             }}
             asChild
